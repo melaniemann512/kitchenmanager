@@ -1,0 +1,18 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}Categories{% endblock %}
+
+{% block content %}
+<h1>Categories</h1>
+
+{% for category in categories %}
+<div class="card">
+    <h2><a href="{% url 'category_detail' category.slug %}">{{ category.name }}</a></h2>
+    <p class="meta">{{ category.recipe_count }} recipe{{ category.recipe_count|pluralize }}</p>
+</div>
+{% empty %}
+<div class="card">
+    <p>No categories yet. Add categories via the <a href="{% url 'admin:index' %}">admin panel</a>.</p>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}{{ recipe.title }}{% endblock %}
+
+{% block content %}
+{% if recipe.image %}
+<img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" style="width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">
+{% endif %}
+<h1>{{ recipe.title }}</h1>
+
+<p class="meta">
+    {% if recipe.category %}
+        <a href="{% url 'category_detail' recipe.category.slug %}"><span class="badge">{{ recipe.category.name }}</span></a>
+    {% endif %}
+    Added {{ recipe.created_at|date:"M d, Y" }}
+    {% if recipe.updated_at != recipe.created_at %}&middot; Updated {{ recipe.updated_at|date:"M d, Y" }}{% endif %}
+</p>
+
+{% if recipe.description %}
+<p style="margin: 1rem 0;">{{ recipe.description }}</p>
+{% endif %}
+
+<div class="card">
+    <p>
+        <strong>Prep:</strong> {{ recipe.prep_time }} min &middot;
+        <strong>Cook:</strong> {{ recipe.cook_time }} min &middot;
+        <strong>Total:</strong> {{ recipe.total_time }} min &middot;
+        <strong>Servings:</strong> {{ recipe.servings }}
+    </p>
+    {% if recipe.prep_time or recipe.cook_time %}
+    <div style="margin-top: 0.6rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        {% if recipe.prep_time %}
+        <a href="{% url 'timer' %}?m={{ recipe.prep_time }}&label=Prep: {{ recipe.title }}" class="btn btn-sm btn-primary">Start Prep Timer ({{ recipe.prep_time }} min)</a>
+        {% endif %}
+        {% if recipe.cook_time %}
+        <a href="{% url 'timer' %}?m={{ recipe.cook_time }}&label=Cook: {{ recipe.title }}" class="btn btn-sm btn-success">Start Cook Timer ({{ recipe.cook_time }} min)</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Ingredients</h2>
+    <ul>
+        {% for line in recipe.ingredients.splitlines %}
+            {% if line.strip %}<li>{{ line }}</li>{% endif %}
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Instructions</h2>
+    <ol>
+        {% for line in recipe.instructions.splitlines %}
+            {% if line.strip %}<li>{{ line }}</li>{% endif %}
+        {% endfor %}
+    </ol>
+</div>
+
+{% if recipe.has_nutrition %}
+<div class="card">
+    <h2>Nutrition <span class="meta">(per serving, AI-estimated)</span></h2>
+    <div class="nutrition-grid">
+        <div class="nutrition-item">
+            <span class="nutrition-value">{{ recipe.calories }}</span>
+            <span class="nutrition-label">Calories</span>
+        </div>
+        <div class="nutrition-item">
+            <span class="nutrition-value">{{ recipe.protein_g }}g</span>
+            <span class="nutrition-label">Protein</span>
+        </div>
+        <div class="nutrition-item">
+            <span class="nutrition-value">{{ recipe.carbs_g }}g</span>
+            <span class="nutrition-label">Carbs</span>
+        </div>
+        <div class="nutrition-item">
+            <span class="nutrition-value">{{ recipe.fat_g }}g</span>
+            <span class="nutrition-label">Fat</span>
+        </div>
+        <div class="nutrition-item">
+            <span class="nutrition-value">{{ recipe.fiber_g }}g</span>
+            <span class="nutrition-label">Fiber</span>
+        </div>
+        <div class="nutrition-item">
+            <span class="nutrition-value">{{ recipe.sugar_g }}g</span>
+            <span class="nutrition-label">Sugar</span>
+        </div>
+        <div class="nutrition-item">
+            <span class="nutrition-value">{{ recipe.sodium_mg }}mg</span>
+            <span class="nutrition-label">Sodium</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="actions">
+    <a href="{% url 'recipe_edit' recipe.slug %}" class="btn btn-primary">Edit</a>
+    <a href="{% url 'recipe_delete' recipe.slug %}" class="btn btn-danger">Delete</a>
+    <a href="{% url 'recipe_list' %}" class="btn btn-secondary">Back to list</a>
+</div>
+{% endblock %}

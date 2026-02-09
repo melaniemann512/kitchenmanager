@@ -1,0 +1,22 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}{{ category.name }}{% endblock %}
+
+{% block content %}
+<h1>{{ category.name }}</h1>
+<p class="meta"><a href="{% url 'category_list' %}">&larr; All categories</a></p>
+
+{% for recipe in recipes %}
+<div class="card">
+    <h2><a href="{% url 'recipe_detail' recipe.slug %}">{{ recipe.title }}</a></h2>
+    <p class="meta">
+        {{ recipe.prep_time }} min prep &middot; {{ recipe.cook_time }} min cook &middot; {{ recipe.servings }} serving{{ recipe.servings|pluralize }}
+    </p>
+    {% if recipe.description %}<p>{{ recipe.description|truncatewords:30 }}</p>{% endif %}
+</div>
+{% empty %}
+<div class="card">
+    <p>No recipes in this category yet.</p>
+</div>
+{% endfor %}
+{% endblock %}

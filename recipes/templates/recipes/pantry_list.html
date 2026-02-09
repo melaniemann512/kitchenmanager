@@ -1,0 +1,52 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}Pantry{% endblock %}
+
+{% block content %}
+<h1>Pantry Tracker</h1>
+
+<div class="actions" style="margin-bottom: 1rem;">
+    <a href="{% url 'pantry_add' %}" class="btn btn-primary">Add Item</a>
+    {% if show == "active" %}
+        <a href="{% url 'pantry_list' %}?show=all" class="btn btn-secondary">Show used items</a>
+    {% else %}
+        <a href="{% url 'pantry_list' %}" class="btn btn-secondary">Hide used items</a>
+    {% endif %}
+</div>
+
+{% for item in items %}
+<div class="card">
+    <div class="pantry-item">
+        <div class="pantry-item-info">
+            <h2 style="margin-bottom: 0.2rem;">
+                {{ item.name }}
+                {% if item.used %}<span class="meta">(used)</span>{% endif %}
+            </h2>
+            <p class="meta">
+                {% if item.quantity %}{{ item.quantity }} &middot; {% endif %}
+                {{ item.get_storage_display }} &middot;
+                Sell by {{ item.sell_by_date|date:"M d, Y" }}
+            </p>
+            {% if not item.used %}
+            <span class="status-badge status-{{ item.status }}">{{ item.status_label }}</span>
+            {% endif %}
+            {% if item.notes %}<p class="meta" style="margin-top: 0.3rem;">{{ item.notes }}</p>{% endif %}
+        </div>
+        <div class="pantry-item-actions">
+            {% if not item.used %}
+            <form method="post" action="{% url 'pantry_mark_used' item.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success" title="Mark as used">Used</button>
+            </form>
+            {% endif %}
+            <a href="{% url 'pantry_edit' item.pk %}" class="btn btn-sm btn-secondary">Edit</a>
+            <a href="{% url 'pantry_delete' item.pk %}" class="btn btn-sm btn-danger">Delete</a>
+        </div>
+    </div>
+</div>
+{% empty %}
+<div class="card">
+    <p>No items in your pantry. <a href="{% url 'pantry_add' %}">Add your first item!</a></p>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}Find a Recipe{% endblock %}
+
+{% block content %}
+<h1>Find a Recipe</h1>
+<p class="meta" style="margin-bottom: 1.2rem;">Search the web for a recipe using AI</p>
+
+<form method="post" class="search-form">
+    {% csrf_token %}
+    <input type="text" name="query" value="{{ query }}" placeholder="e.g., chicken tikka masala, beef stew, banana bread..." required>
+    <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+{% if error %}
+<div class="alert-banner alert-banner-danger">
+    {{ error }}
+</div>
+{% endif %}
+
+{% if recipe %}
+<div class="card">
+    <h2>{{ recipe.title }}</h2>
+    {% if recipe.description %}<p style="margin-bottom: 0.8rem;">{{ recipe.description }}</p>{% endif %}
+
+    <p>
+        <strong>Prep:</strong> {{ recipe.prep_time }} min &middot;
+        <strong>Cook:</strong> {{ recipe.cook_time }} min &middot;
+        <strong>Servings:</strong> {{ recipe.servings }}
+    </p>
+
+    {% if recipe.source_url %}
+    <p class="meta" style="margin-top: 0.5rem;">Source: <a href="{{ recipe.source_url }}" target="_blank" rel="noopener">{{ recipe.source_url }}</a></p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Ingredients</h2>
+    <ul>
+        {% for line in recipe.ingredients.splitlines %}
+            {% if line.strip %}<li>{{ line }}</li>{% endif %}
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Instructions</h2>
+    <ol>
+        {% for line in recipe.instructions.splitlines %}
+            {% if line.strip %}<li>{{ line }}</li>{% endif %}
+        {% endfor %}
+    </ol>
+</div>
+
+<div class="actions">
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="save" value="1">
+        <input type="hidden" name="title" value="{{ recipe.title }}">
+        <input type="hidden" name="description" value="{{ recipe.description }}">
+        <input type="hidden" name="ingredients" value="{{ recipe.ingredients }}">
+        <input type="hidden" name="instructions" value="{{ recipe.instructions }}">
+        <input type="hidden" name="prep_time" value="{{ recipe.prep_time }}">
+        <input type="hidden" name="cook_time" value="{{ recipe.cook_time }}">
+        <input type="hidden" name="servings" value="{{ recipe.servings }}">
+        <button type="submit" class="btn btn-primary">Save to My Recipes</button>
+    </form>
+    <a href="{% url 'recipe_generate' %}" class="btn btn-secondary">Search Again</a>
+</div>
+{% endif %}
+{% endblock %}

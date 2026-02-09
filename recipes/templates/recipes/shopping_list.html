@@ -1,0 +1,56 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}Shopping List{% endblock %}
+
+{% block content %}
+<h1>Shopping List</h1>
+
+<div class="actions" style="margin-bottom: 1rem;">
+    <a href="{% url 'shopping_add' %}" class="btn btn-primary">Add Item</a>
+    {% if show == "active" %}
+        <a href="{% url 'shopping_list' %}?show=all" class="btn btn-secondary">Show checked items</a>
+    {% else %}
+        <a href="{% url 'shopping_list' %}" class="btn btn-secondary">Hide checked items</a>
+    {% endif %}
+    <form method="post" action="{% url 'shopping_clear' %}" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Clear checked</button>
+    </form>
+</div>
+
+{% regroup items by get_section_display as section_list %}
+
+{% for section in section_list %}
+<h2 style="margin-top: 1.2rem;">{{ section.grouper }}</h2>
+{% for item in section.list %}
+<div class="card" style="{% if item.checked %}opacity: 0.6;{% endif %}">
+    <div class="pantry-item">
+        <div class="pantry-item-info">
+            <h2 style="margin-bottom: 0; {% if item.checked %}text-decoration: line-through; color: #8a7e72;{% endif %}">
+                {{ item.name }}
+            </h2>
+            {% if item.quantity %}
+            <p class="meta">{{ item.quantity }}</p>
+            {% endif %}
+        </div>
+        <div class="pantry-item-actions">
+            <form method="post" action="{% url 'shopping_toggle' item.pk %}">
+                {% csrf_token %}
+                {% if item.checked %}
+                <button type="submit" class="btn btn-sm btn-secondary" title="Uncheck">Undo</button>
+                {% else %}
+                <button type="submit" class="btn btn-sm btn-success" title="Mark as done">Done</button>
+                {% endif %}
+            </form>
+            <a href="{% url 'shopping_edit' item.pk %}" class="btn btn-sm btn-secondary">Edit</a>
+            <a href="{% url 'shopping_delete' item.pk %}" class="btn btn-sm btn-danger">Delete</a>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% empty %}
+<div class="card">
+    <p>Your shopping list is empty. <a href="{% url 'shopping_add' %}">Add your first item!</a></p>
+</div>
+{% endfor %}
+{% endblock %}

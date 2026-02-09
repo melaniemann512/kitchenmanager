@@ -1,0 +1,35 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}{% if editing %}Edit {{ recipe.title }}{% else %}Add Recipe{% endif %}{% endblock %}
+
+{% block content %}
+<h1>{% if editing %}Edit Recipe{% else %}Add Recipe{% endif %}</h1>
+
+<div class="card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if editing and recipe.image %}
+        <div class="field">
+            <label>Current Image</label>
+            <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}" style="max-width: 300px; border-radius: 6px; display: block; margin-bottom: 0.5rem;">
+        </div>
+        {% endif %}
+        {% for field in form %}
+        <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="helptext">{{ field.help_text }}</p>{% endif %}
+            {% if field.errors %}<ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        {% endfor %}
+        <div class="actions">
+            <button type="submit" class="btn btn-primary">{% if editing %}Update{% else %}Create{% endif %} Recipe</button>
+            {% if editing %}
+                <a href="{% url 'recipe_detail' recipe.slug %}" class="btn btn-secondary">Cancel</a>
+            {% else %}
+                <a href="{% url 'recipe_list' %}" class="btn btn-secondary">Cancel</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

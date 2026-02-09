@@ -1,0 +1,272 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}Kitchen Timer{% endblock %}
+
+{% block content %}
+<h1>Kitchen Timer</h1>
+
+<div class="card">
+    <h2>Add Timer</h2>
+    <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; margin-top: 0.5rem;">
+        <label for="timer-min" style="font-weight: 600;">Minutes:</label>
+        <input type="number" id="timer-min" min="0" max="999" value="{{ initial_minutes|default:'0' }}"
+            style="width: 80px; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1rem; text-align: center;">
+        <label for="timer-sec" style="font-weight: 600; margin-left: 0.5rem;">Seconds:</label>
+        <input type="number" id="timer-sec" min="0" max="59" value="0"
+            style="width: 80px; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1.1rem; text-align: center;">
+    </div>
+    <div style="display: flex; gap: 0.5rem; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
+        <label for="timer-name" style="font-weight: 600;">Label:</label>
+        <input type="text" id="timer-name" value="{{ initial_label }}" placeholder="e.g., Boil pasta"
+            style="width: 220px; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem;">
+    </div>
+    <div style="text-align: center;">
+        <button onclick="addTimerFromForm()" class="btn btn-primary" style="font-size: 1.1rem; padding: 0.6rem 2rem;">Start</button>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Quick Timers</h2>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+        <button onclick="addTimer(1, 0, '1 minute')" class="btn btn-secondary btn-sm">1 min</button>
+        <button onclick="addTimer(3, 0, '3 minutes')" class="btn btn-secondary btn-sm">3 min</button>
+        <button onclick="addTimer(5, 0, '5 minutes')" class="btn btn-secondary btn-sm">5 min</button>
+        <button onclick="addTimer(10, 0, '10 minutes')" class="btn btn-secondary btn-sm">10 min</button>
+        <button onclick="addTimer(15, 0, '15 minutes')" class="btn btn-secondary btn-sm">15 min</button>
+        <button onclick="addTimer(20, 0, '20 minutes')" class="btn btn-secondary btn-sm">20 min</button>
+        <button onclick="addTimer(30, 0, '30 minutes')" class="btn btn-secondary btn-sm">30 min</button>
+        <button onclick="addTimer(45, 0, '45 minutes')" class="btn btn-secondary btn-sm">45 min</button>
+        <button onclick="addTimer(60, 0, '1 hour')" class="btn btn-secondary btn-sm">1 hr</button>
+    </div>
+</div>
+
+<div id="timers-container"></div>
+
+<script>
+    const timers = [];
+    let nextId = 1;
+    const originalTitle = document.title;
+    const container = document.getElementById('timers-container');
+
+    function formatTime(totalSeconds) {
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function addTimerFromForm() {
+        const mins = parseInt(document.getElementById('timer-min').value) || 0;
+        const secs = parseInt(document.getElementById('timer-sec').value) || 0;
+        const label = document.getElementById('timer-name').value.trim();
+        addTimer(mins, secs, label);
+    }
+
+    function addTimer(mins, secs, label) {
+        const totalSeconds = mins * 60 + secs;
+        if (totalSeconds <= 0) return;
+
+        const timer = {
+            id: nextId++,
+            label: label || ('Timer ' + (nextId - 1)),
+            remaining: totalSeconds,
+            intervalId: null,
+            paused: false,
+            done: false,
+            alarmTimeout: null,
+            audioCtx: null
+        };
+
+        timer.intervalId = setInterval(function() { tick(timer.id); }, 1000);
+        timers.push(timer);
+        renderTimers();
+
+        // Clear the form for the next timer
+        document.getElementById('timer-min').value = '0';
+        document.getElementById('timer-sec').value = '0';
+        document.getElementById('timer-name').value = '';
+    }
+
+    function tick(id) {
+        const timer = timers.find(function(t) { return t.id === id; });
+        if (!timer || timer.paused || timer.done) return;
+
+        timer.remaining--;
+        if (timer.remaining <= 0) {
+            timer.remaining = 0;
+            timer.done = true;
+            clearInterval(timer.intervalId);
+            timer.intervalId = null;
+            triggerAlarm(timer);
+        }
+        renderTimers();
+        updateTitle();
+    }
+
+    function pauseTimer(id) {
+        const timer = timers.find(function(t) { return t.id === id; });
+        if (!timer || timer.done) return;
+
+        if (!timer.paused) {
+            clearInterval(timer.intervalId);
+            timer.intervalId = null;
+            timer.paused = true;
+        } else {
+            timer.paused = false;
+            timer.intervalId = setInterval(function() { tick(timer.id); }, 1000);
+        }
+        renderTimers();
+        updateTitle();
+    }
+
+    function removeTimer(id) {
+        const idx = timers.findIndex(function(t) { return t.id === id; });
+        if (idx === -1) return;
+
+        const timer = timers[idx];
+        if (timer.intervalId) clearInterval(timer.intervalId);
+        stopTimerAlarm(timer);
+        timers.splice(idx, 1);
+        renderTimers();
+        updateTitle();
+    }
+
+    function stopAlarm(id) {
+        const timer = timers.find(function(t) { return t.id === id; });
+        if (!timer) return;
+        stopTimerAlarm(timer);
+        renderTimers();
+        updateTitle();
+    }
+
+    function stopTimerAlarm(timer) {
+        if (timer.alarmTimeout) {
+            clearTimeout(timer.alarmTimeout);
+            timer.alarmTimeout = null;
+        }
+        if (timer.audioCtx) {
+            timer.audioCtx.close();
+            timer.audioCtx = null;
+        }
+    }
+
+    function triggerAlarm(timer) {
+        // Browser notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Kitchen Timer', { body: timer.label + ' is done!' });
+        }
+
+        // Audio alarm
+        try {
+            timer.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            playAlarmPattern(timer);
+        } catch (e) {}
+    }
+
+    function playAlarmPattern(timer) {
+        if (!timer.audioCtx) return;
+        let time = timer.audioCtx.currentTime;
+        for (let i = 0; i < 30; i++) {
+            const osc = timer.audioCtx.createOscillator();
+            const gain = timer.audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(timer.audioCtx.destination);
+            osc.frequency.value = i % 2 === 0 ? 880 : 660;
+            gain.gain.value = 0.3;
+            osc.start(time);
+            osc.stop(time + 0.15);
+            time += 0.25;
+        }
+        timer.alarmTimeout = setTimeout(function() {
+            if (timer.audioCtx) playAlarmPattern(timer);
+        }, 8500);
+    }
+
+    function updateTitle() {
+        const doneTimers = timers.filter(function(t) { return t.done && t.audioCtx; });
+        if (doneTimers.length > 0) {
+            document.title = 'DONE! ' + doneTimers[0].label;
+            return;
+        }
+
+        const active = timers.filter(function(t) { return !t.done && !t.paused; });
+        if (active.length > 0) {
+            active.sort(function(a, b) { return a.remaining - b.remaining; });
+            document.title = formatTime(active[0].remaining) + ' - ' + active[0].label;
+            return;
+        }
+
+        document.title = originalTitle;
+    }
+
+    function renderTimers() {
+        if (timers.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let html = '';
+        for (let i = 0; i < timers.length; i++) {
+            const t = timers[i];
+            const borderColor = t.done ? '#c0392b' : (t.paused ? '#f39c12' : '#27ae60');
+            const timeColor = t.done ? '#c0392b' : '#2c3e50';
+
+            html += '<div class="card" style="border-left: 4px solid ' + borderColor + ';">';
+            html += '<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">';
+
+            // Left: label + time
+            html += '<div>';
+            html += '<div class="meta" style="font-size: 1rem; margin-bottom: 0.2rem;">' + escapeHtml(t.label) + '</div>';
+            html += '<div style="font-size: 2.5rem; font-weight: 700; color: ' + timeColor + '; font-variant-numeric: tabular-nums;">';
+            html += formatTime(t.remaining);
+            html += '</div>';
+
+            if (t.done && t.audioCtx) {
+                html += '<div style="color: #c0392b; font-weight: 700; font-size: 0.95rem;">Time\'s up!</div>';
+            } else if (t.paused) {
+                html += '<div style="color: #f39c12; font-weight: 600; font-size: 0.85rem;">Paused</div>';
+            }
+
+            html += '</div>';
+
+            // Right: buttons
+            html += '<div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">';
+
+            if (t.done) {
+                if (t.audioCtx) {
+                    html += '<button onclick="stopAlarm(' + t.id + ')" class="btn btn-sm btn-danger">Stop Alarm</button>';
+                }
+                html += '<button onclick="removeTimer(' + t.id + ')" class="btn btn-sm btn-secondary">Remove</button>';
+            } else {
+                html += '<button onclick="pauseTimer(' + t.id + ')" class="btn btn-sm btn-secondary">';
+                html += t.paused ? 'Resume' : 'Pause';
+                html += '</button>';
+                html += '<button onclick="removeTimer(' + t.id + ')" class="btn btn-sm btn-danger">Remove</button>';
+            }
+
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
+        }
+
+        container.innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
+    }
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
+    // Auto-start if minutes were passed via URL (e.g., from recipe page)
+    {% if initial_minutes %}
+    window.addEventListener('DOMContentLoaded', function() {
+        addTimerFromForm();
+    });
+    {% endif %}
+</script>
+{% endblock %}
