@@ -15,7 +15,7 @@
 </div>
 
 {% for item in items %}
-<div class="card">
+<div class="card" id="pantry-item-{{ item.pk }}">
     <div class="pantry-item">
         <div class="pantry-item-info">
             <h2 style="margin-bottom: 0.2rem;">
@@ -23,12 +23,28 @@
                 {% if item.used %}<span class="meta">(used)</span>{% endif %}
             </h2>
             <p class="meta">
-                {% if item.quantity %}{{ item.quantity }} &middot; {% endif %}
+                {% if item.quantity_amount is not None %}
+                <span class="quantity-display" id="qty-display-{{ item.pk }}">
+                    <span id="qty-val-{{ item.pk }}">{{ item.quantity_amount }}</span>
+                    <span id="qty-unit-{{ item.pk }}">{{ item.unit }}</span>
+                </span>
+                &middot;
+                {% elif item.quantity %}{{ item.quantity }} &middot; {% endif %}
                 {{ item.get_storage_display }} &middot;
                 Sell by {{ item.sell_by_date|date:"M d, Y" }}
             </p>
+            {% if item.quantity_amount is not None and not item.used %}
+            <div class="quantity-controls" style="display: flex; align-items: center; gap: 0.4rem; margin: 0.4rem 0;">
+                <button type="button" class="btn btn-sm btn-danger" onclick="adjustQuantity({{ item.pk }}, -1)" title="Decrease by 1">&minus;</button>
+                <span style="font-weight: 700; font-size: 1.1rem; min-width: 3rem; text-align: center;" id="qty-big-{{ item.pk }}">{{ item.quantity_amount }}</span>
+                <span style="font-size: 0.85rem; color: #8a7e72;" id="qty-unit-big-{{ item.pk }}">{{ item.unit }}</span>
+                <button type="button" class="btn btn-sm btn-success" onclick="adjustQuantity({{ item.pk }}, 1)" title="Increase by 1">+</button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="promptCustomAmount({{ item.pk }})" title="Use custom amount" style="margin-left: 0.3rem;">Custom</button>
+            </div>
+            {% endif %}
             {% if not item.used %}
             <span class="status-badge status-{{ item.status }}">{{ item.status_label }}</span>
+            <span class="status-badge status-lowstock" id="lowstock-badge-{{ item.pk }}" style="{% if not item.is_low_stock %}display:none;{% endif %} margin-left: 0.3rem;">Low Stock</span>
             {% endif %}
             {% if item.notes %}<p class="meta" style="margin-top: 0.3rem;">{{ item.notes }}</p>{% endif %}
         </div>
@@ -49,4 +65,237 @@
     <p>No items in your pantry. <a href="{% url 'pantry_add' %}">Add your first item!</a></p>
 </div>
 {% endfor %}
+
+<!-- Toast notification -->
+<div id="toast" style="
+    display: none;
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #3d4f2f;
+    color: #fff;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    z-index: 1000;
+    transition: opacity 0.3s;
+"></div>
+
+<script>
+    // CSRF token for AJAX requests
+    const csrfToken = '{{ csrf_token }}';
+
+    // Server data for localStorage reconciliation
+    const serverItems = {{ items_json|safe }};
+
+    // --- localStorage helpers ---
+
+    function storageKey(id) {
+        return 'pantry_qty_' + id;
+    }
+
+    function initLocalStorage() {
+        for (let i = 0; i < serverItems.length; i++) {
+            const item = serverItems[i];
+            // Server always wins on page load
+            if (item.quantity_amount !== null) {
+                localStorage.setItem(storageKey(item.id), JSON.stringify({
+                    quantity_amount: item.quantity_amount,
+                    unit: item.unit,
+                    low_stock_threshold: item.low_stock_threshold,
+                    is_low_stock: item.is_low_stock
+                }));
+            } else {
+                localStorage.removeItem(storageKey(item.id));
+            }
+        }
+    }
+
+    function getQuantity(id) {
+        const raw = localStorage.getItem(storageKey(id));
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function setQuantity(id, val, unit) {
+        // Preserve threshold data from existing entry
+        const existing = getQuantity(id);
+        const threshold = existing ? existing.low_stock_threshold : null;
+        const isLow = existing ? existing.is_low_stock : false;
+        localStorage.setItem(storageKey(id), JSON.stringify({
+            quantity_amount: val,
+            unit: unit,
+            low_stock_threshold: threshold,
+            is_low_stock: isLow
+        }));
+    }
+
+    // --- DOM updates ---
+
+    function updateDisplay(id, val, unit) {
+        const formatted = parseFloat(val) % 1 === 0 ? parseInt(val) : parseFloat(val).toFixed(2);
+        const elements = [
+            document.getElementById('qty-val-' + id),
+            document.getElementById('qty-big-' + id),
+        ];
+        for (let i = 0; i < elements.length; i++) {
+            if (elements[i]) elements[i].textContent = formatted;
+        }
+        const unitElements = [
+            document.getElementById('qty-unit-' + id),
+            document.getElementById('qty-unit-big-' + id),
+        ];
+        for (let i = 0; i < unitElements.length; i++) {
+            if (unitElements[i]) unitElements[i].textContent = unit;
+        }
+
+        // If zero, dim the card
+        const card = document.getElementById('pantry-item-' + id);
+        if (card) {
+            if (parseFloat(val) <= 0) {
+                card.style.opacity = '0.6';
+            } else {
+                card.style.opacity = '1';
+            }
+        }
+
+        // Show/hide low-stock badge
+        const badge = document.getElementById('lowstock-badge-' + id);
+        if (badge) {
+            const current = getQuantity(id);
+            const threshold = current ? parseFloat(current.low_stock_threshold) : null;
+            const qty = parseFloat(val);
+            if (threshold !== null && !isNaN(threshold) && qty > 0 && qty <= threshold) {
+                badge.style.display = '';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+
+    // --- Quantity adjustment ---
+
+    function adjustQuantity(id, delta) {
+        const current = getQuantity(id);
+        if (!current) return;
+
+        const currentVal = parseFloat(current.quantity_amount);
+        const newVal = Math.max(0, currentVal + delta);
+
+        // Optimistic update: localStorage + UI
+        setQuantity(id, String(newVal), current.unit);
+        updateDisplay(id, String(newVal), current.unit);
+
+        // Sync to server
+        if (delta < 0) {
+            syncToServer(id, Math.abs(delta));
+        } else {
+            // For increase, we send a negative reduce (add back)
+            syncToServer(id, -delta);
+        }
+    }
+
+    function promptCustomAmount(id) {
+        const input = prompt('Enter amount to use:');
+        if (input === null) return;
+        const amount = parseFloat(input);
+        if (isNaN(amount) || amount <= 0) {
+            showToast('Please enter a valid positive number');
+            return;
+        }
+
+        const current = getQuantity(id);
+        if (!current) return;
+
+        const currentVal = parseFloat(current.quantity_amount);
+        const newVal = Math.max(0, currentVal - amount);
+
+        // Optimistic update
+        setQuantity(id, String(newVal), current.unit);
+        updateDisplay(id, String(newVal), current.unit);
+
+        syncToServer(id, amount);
+    }
+
+    function syncToServer(id, amount) {
+        const formData = new FormData();
+        formData.append('amount', String(amount));
+
+        fetch('/pantry/' + id + '/reduce/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+            },
+            body: formData,
+        })
+        .then(function(response) {
+            if (!response.ok) throw new Error('Server error');
+            return response.json();
+        })
+        .then(function(data) {
+            // Reconcile with server response (server is source of truth)
+            setQuantity(id, data.quantity_amount, data.unit);
+            // Update threshold data from server
+            const entry = getQuantity(id);
+            if (entry) {
+                entry.low_stock_threshold = data.low_stock_threshold;
+                entry.is_low_stock = data.is_low_stock;
+                localStorage.setItem(storageKey(id), JSON.stringify(entry));
+            }
+            updateDisplay(id, data.quantity_amount, data.unit);
+
+            if (data.reached_zero) {
+                if (data.added_to_shopping) {
+                    showToast('Added "' + getItemName(id) + '" to shopping list!');
+                } else {
+                    showToast('Item depleted (already on shopping list)');
+                }
+            } else if (data.became_low_stock) {
+                if (data.added_to_shopping) {
+                    showToast('Low stock! Added "' + getItemName(id) + '" to shopping list.');
+                } else {
+                    showToast('"' + getItemName(id) + '" is running low.');
+                }
+            }
+        })
+        .catch(function(err) {
+            // Revert to server state on error — reload to be safe
+            showToast('Sync failed. Refreshing...');
+            setTimeout(function() { location.reload(); }, 1500);
+        });
+    }
+
+    function getItemName(id) {
+        const card = document.getElementById('pantry-item-' + id);
+        if (!card) return 'Item';
+        const h2 = card.querySelector('h2');
+        return h2 ? h2.textContent.trim().replace(/\(used\)/, '').trim() : 'Item';
+    }
+
+    // --- Toast ---
+
+    let toastTimeout = null;
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        toast.style.opacity = '1';
+
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(function() {
+            toast.style.opacity = '0';
+            setTimeout(function() { toast.style.display = 'none'; }, 300);
+        }, 3000);
+    }
+
+    // --- Init ---
+    initLocalStorage();
+</script>
 {% endblock %}

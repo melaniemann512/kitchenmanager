@@ -28,6 +28,22 @@
 </div>
 {% endif %}
 
+{% if low_stock_items %}
+<div class="alert-banner alert-banner-warning">
+    <strong>Low Stock Alert:</strong> These pantry items are running low!
+    <ul>
+        {% for item in low_stock_items %}
+        <li>
+            <strong>{{ item.name }}</strong>
+            {% if item.quantity_amount is not None %} ({{ item.quantity_amount }} {{ item.unit }}){% endif %}
+            &mdash; <span class="status-badge status-lowstock">Low Stock</span>
+        </li>
+        {% endfor %}
+    </ul>
+    <p style="margin-top: 0.5rem;"><a href="{% url 'pantry_list' %}">View pantry &rarr;</a></p>
+</div>
+{% endif %}
+
 <div class="page-header">
     <h1>Recipes</h1>
     <a href="{% url 'recipe_create' %}" class="btn btn-primary">+ Add Recipe</a>

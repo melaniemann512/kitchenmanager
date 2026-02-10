@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import date
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
@@ -147,6 +148,15 @@ class PantryItem(models.Model):
 
     name = models.CharField(max_length=200)
     quantity = models.CharField(max_length=100, blank=True, help_text="e.g., 2 lbs, 1 gallon")
+    quantity_amount = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        help_text="Numeric quantity for tracking (e.g., 5)"
+    )
+    unit = models.CharField(max_length=50, blank=True, help_text="Unit of measure (e.g., lbs, oz, cups)")
+    low_stock_threshold = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        help_text="Alert when quantity drops to this level (default: 25% of initial quantity)"
+    )
     storage = models.CharField(max_length=10, choices=STORAGE_CHOICES, default="fridge")
     sell_by_date = models.DateField(help_text="Sell-by or use-by date from the package")
     notes = models.TextField(blank=True)
@@ -158,6 +168,37 @@ class PantryItem(models.Model):
 
     def __str__(self):
         return f"{self.name} (sell by {self.sell_by_date})"
+
+    def save(self, *args, **kwargs):
+        if self.low_stock_threshold is None and self.quantity_amount is not None:
+            self.low_stock_threshold = max(
+                self.quantity_amount * Decimal("0.25"),
+                min(Decimal("1"), self.quantity_amount),
+            )
+        super().save(*args, **kwargs)
+
+    @property
+    def is_low_stock(self):
+        if (
+            self.quantity_amount is not None
+            and self.low_stock_threshold is not None
+            and not self.used
+            and self.quantity_amount > 0
+            and self.quantity_amount <= self.low_stock_threshold
+        ):
+            return True
+        return False
+
+    def reduce_quantity(self, amount=Decimal("1")):
+        """Decrement quantity_amount by amount. Returns True if it reached zero."""
+        if self.quantity_amount is None:
+            return False
+        self.quantity_amount = max(Decimal("0"), self.quantity_amount - Decimal(str(amount)))
+        reached_zero = self.quantity_amount == 0
+        if reached_zero:
+            self.used = True
+        self.save()
+        return reached_zero
 
     @property
     def days_remaining(self):
