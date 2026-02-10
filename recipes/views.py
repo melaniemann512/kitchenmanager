@@ -14,22 +14,46 @@ from .forms import PantryItemForm, RecipeForm, ShoppingItemForm
 from .models import Category, PantryItem, Recipe, ShoppingItem
 
 
+def dashboard(request):
+    # Recipes summary
+    recipe_count = Recipe.objects.count()
+    recent_recipes = Recipe.objects.select_related("category")[:5]
+
+    # Pantry summary
+    active_pantry = PantryItem.objects.filter(used=False)
+    pantry_count = active_pantry.count()
+    expiring_items = active_pantry.order_by("sell_by_date")
+    urgent_items = [item for item in expiring_items if item.status in ("expired", "today", "warning")]
+    low_stock_items = [item for item in active_pantry if item.is_low_stock]
+
+    # Shopping summary
+    unchecked_shopping = ShoppingItem.objects.filter(checked=False)
+    shopping_count = unchecked_shopping.count()
+
+    # Categories with recipe counts
+    categories = Category.objects.annotate(recipe_count=Count("recipes"))
+
+    return render(request, "recipes/dashboard.html", {
+        "recipe_count": recipe_count,
+        "recent_recipes": recent_recipes,
+        "pantry_count": pantry_count,
+        "urgent_items": urgent_items,
+        "low_stock_items": low_stock_items,
+        "shopping_count": shopping_count,
+        "unchecked_shopping": unchecked_shopping,
+        "categories": categories,
+    })
+
+
 def recipe_list(request):
     query = request.GET.get("q", "").strip()
     recipes = Recipe.objects.select_related("category")
     if query:
         recipes = recipes.filter(Q(title__icontains=query) | Q(ingredients__icontains=query))
 
-    # Pantry warnings for the home page banner
-    expiring_items = PantryItem.objects.filter(used=False).order_by("sell_by_date")
-    urgent_items = [item for item in expiring_items if item.status in ("expired", "today", "warning")]
-    low_stock_items = [item for item in PantryItem.objects.filter(used=False) if item.is_low_stock]
-
     return render(request, "recipes/recipe_list.html", {
         "recipes": recipes,
         "query": query,
-        "urgent_items": urgent_items,
-        "low_stock_items": low_stock_items,
     })
 
 

@@ -319,9 +319,10 @@
 </head>
 <body>
     <nav>
-        <a href="{% url 'recipe_list' %}" class="brand">Souschef.ai</a>
+        <a href="{% url 'dashboard' %}" class="brand">Souschef.ai</a>
         <div class="links">
-            <a href="{% url 'recipe_list' %}">Home</a>
+            <a href="{% url 'dashboard' %}">Home</a>
+            <a href="{% url 'recipe_list' %}">Recipes</a>
             <a href="{% url 'category_list' %}">Categories</a>
             <a href="{% url 'pantry_list' %}">Pantry</a>
             <a href="{% url 'shopping_list' %}">Shopping</a>
