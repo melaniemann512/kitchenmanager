@@ -35,10 +35,12 @@ class RecipeForm(forms.ModelForm):
 class PantryItemForm(forms.ModelForm):
     class Meta:
         model = PantryItem
-        fields = ["name", "quantity", "storage", "sell_by_date", "notes"]
+        fields = ["name", "quantity_amount", "unit", "low_stock_threshold", "storage", "sell_by_date", "notes"]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "e.g., Ground Beef"}),
-            "quantity": forms.TextInput(attrs={"placeholder": "e.g., 2 lbs"}),
+            "quantity_amount": forms.NumberInput(attrs={"step": "0.01", "min": "0", "placeholder": "e.g., 5"}),
+            "unit": forms.TextInput(attrs={"placeholder": "e.g., lbs, oz, cups"}),
+            "low_stock_threshold": forms.NumberInput(attrs={"step": "0.01", "min": "0", "placeholder": "Auto: 25% of quantity"}),
             "sell_by_date": forms.DateInput(attrs={"type": "date"}),
             "notes": forms.Textarea(attrs={"rows": 2, "placeholder": "Optional notes"}),
         }

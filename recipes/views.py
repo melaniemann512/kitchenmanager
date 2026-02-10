@@ -1,9 +1,12 @@
 import json
 import logging
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db.models import Count, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +23,13 @@ def recipe_list(request):
     # Pantry warnings for the home page banner
     expiring_items = PantryItem.objects.filter(used=False).order_by("sell_by_date")
     urgent_items = [item for item in expiring_items if item.status in ("expired", "today", "warning")]
+    low_stock_items = [item for item in PantryItem.objects.filter(used=False) if item.is_low_stock]
 
     return render(request, "recipes/recipe_list.html", {
         "recipes": recipes,
         "query": query,
         "urgent_items": urgent_items,
+        "low_stock_items": low_stock_items,
     })
 
 
@@ -89,7 +94,24 @@ def pantry_list(request):
         items = PantryItem.objects.all()
     else:
         items = PantryItem.objects.filter(used=False)
-    return render(request, "recipes/pantry_list.html", {"items": items, "show": show})
+
+    # Serialize quantity data as JSON for localStorage initialization
+    items_json = json.dumps([
+        {
+            "id": item.pk,
+            "quantity_amount": str(item.quantity_amount) if item.quantity_amount is not None else None,
+            "unit": item.unit,
+            "low_stock_threshold": str(item.low_stock_threshold) if item.low_stock_threshold is not None else None,
+            "is_low_stock": item.is_low_stock,
+        }
+        for item in items
+    ])
+
+    return render(request, "recipes/pantry_list.html", {
+        "items": items,
+        "show": show,
+        "items_json": items_json,
+    })
 
 
 def pantry_add(request):
@@ -129,6 +151,56 @@ def pantry_delete(request, pk):
         item.delete()
         return redirect("pantry_list")
     return render(request, "recipes/pantry_confirm_delete.html", {"item": item})
+
+
+@require_POST
+def pantry_reduce_quantity(request, pk):
+    item = get_object_or_404(PantryItem, pk=pk)
+
+    if item.quantity_amount is None:
+        return JsonResponse({"error": "Item has no numeric quantity"}, status=400)
+
+    try:
+        amount = Decimal(request.POST.get("amount", "1"))
+    except (InvalidOperation, TypeError):
+        return JsonResponse({"error": "Invalid amount"}, status=400)
+
+    reached_zero = False
+    added_to_shopping = False
+    became_low_stock = False
+
+    if amount > 0:
+        # Capture state before reduction
+        was_low_stock = item.is_low_stock
+        # Reduce quantity
+        reached_zero = item.reduce_quantity(amount)
+        if reached_zero:
+            exists = ShoppingItem.objects.filter(name__iexact=item.name, checked=False).exists()
+            if not exists:
+                ShoppingItem.objects.create(name=item.name, quantity=item.unit)
+                added_to_shopping = True
+        elif item.is_low_stock and not was_low_stock:
+            became_low_stock = True
+            exists = ShoppingItem.objects.filter(name__iexact=item.name, checked=False).exists()
+            if not exists:
+                ShoppingItem.objects.create(name=item.name, quantity=item.unit)
+                added_to_shopping = True
+    elif amount < 0:
+        # Increase quantity (add back)
+        item.quantity_amount = item.quantity_amount + abs(amount)
+        if item.used and item.quantity_amount > 0:
+            item.used = False
+        item.save()
+
+    return JsonResponse({
+        "quantity_amount": str(item.quantity_amount),
+        "unit": item.unit,
+        "reached_zero": reached_zero,
+        "added_to_shopping": added_to_shopping,
+        "is_low_stock": item.is_low_stock,
+        "low_stock_threshold": str(item.low_stock_threshold) if item.low_stock_threshold is not None else None,
+        "became_low_stock": became_low_stock,
+    })
 
 
 def shopping_list(request):
