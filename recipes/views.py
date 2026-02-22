@@ -45,6 +45,10 @@ def dashboard(request):
     })
 
 
+def about(request):
+    return render(request, "recipes/about.html")
+
+
 def recipe_list(request):
     query = request.GET.get("q", "").strip()
     recipes = Recipe.objects.select_related("category")
@@ -110,6 +114,10 @@ def timer(request):
     minutes = request.GET.get("m", "")
     label = request.GET.get("label", "")
     return render(request, "recipes/timer.html", {"initial_minutes": minutes, "initial_label": label})
+
+
+def converter(request):
+    return render(request, "recipes/converter.html")
 
 
 def pantry_list(request):

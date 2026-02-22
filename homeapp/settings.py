@@ -88,4 +88,4 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Anthropic API key for AI-powered nutrition estimation
 # Get your key at https://console.anthropic.com/
-ANTHROPIC_API_KEY = "your_key_here"
+ANTHROPIC_API_KEY = ""

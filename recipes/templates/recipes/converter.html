@@ -1,0 +1,198 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}Measurement Converter{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Measurement Converter</h1>
+</div>
+<p class="page-subtitle">Convert between common kitchen measurements</p>
+
+<div class="card" style="padding: 1.5rem;">
+    <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem;">
+        <div style="flex: 1; min-width: 100px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.3rem;">Amount</label>
+            <input type="number" id="amount" value="1" min="0" step="any"
+                   style="width: 100%; padding: 0.5rem 0.8rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem;">
+        </div>
+        <div style="flex: 2; min-width: 140px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.3rem;">From</label>
+            <select id="from-unit" style="width: 100%; padding: 0.5rem 0.8rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem;">
+                <optgroup label="Volume">
+                    <option value="tsp">Teaspoons (tsp)</option>
+                    <option value="tbsp">Tablespoons (tbsp)</option>
+                    <option value="fl_oz" selected>Fluid Ounces (fl oz)</option>
+                    <option value="cup">Cups</option>
+                    <option value="pint">Pints</option>
+                    <option value="quart">Quarts</option>
+                    <option value="gallon">Gallons</option>
+                    <option value="ml">Milliliters (mL)</option>
+                    <option value="liter">Liters</option>
+                </optgroup>
+                <optgroup label="Weight">
+                    <option value="oz">Ounces (oz)</option>
+                    <option value="lb">Pounds (lb)</option>
+                    <option value="g">Grams (g)</option>
+                    <option value="kg">Kilograms (kg)</option>
+                </optgroup>
+            </select>
+        </div>
+        <div style="padding-bottom: 0.3rem;">
+            <button id="swap-btn" class="btn btn-secondary btn-sm" title="Swap units" style="font-size: 1.1rem; padding: 0.45rem 0.7rem;">&#8646;</button>
+        </div>
+        <div style="flex: 2; min-width: 140px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.3rem;">To</label>
+            <select id="to-unit" style="width: 100%; padding: 0.5rem 0.8rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem;">
+                <optgroup label="Volume">
+                    <option value="tsp">Teaspoons (tsp)</option>
+                    <option value="tbsp">Tablespoons (tbsp)</option>
+                    <option value="fl_oz">Fluid Ounces (fl oz)</option>
+                    <option value="cup" selected>Cups</option>
+                    <option value="pint">Pints</option>
+                    <option value="quart">Quarts</option>
+                    <option value="gallon">Gallons</option>
+                    <option value="ml">Milliliters (mL)</option>
+                    <option value="liter">Liters</option>
+                </optgroup>
+                <optgroup label="Weight">
+                    <option value="oz">Ounces (oz)</option>
+                    <option value="lb">Pounds (lb)</option>
+                    <option value="g">Grams (g)</option>
+                    <option value="kg">Kilograms (kg)</option>
+                </optgroup>
+            </select>
+        </div>
+    </div>
+
+    <div id="result" style="text-align: center; padding: 1.2rem; background: #faf7f2; border-radius: 6px; margin-top: 0.5rem;">
+        <span style="font-size: 2rem; font-weight: 800; color: #c26a3a;" id="result-value">0.125</span>
+        <span style="font-size: 1.1rem; color: #8a7e72;" id="result-unit">Cups</span>
+    </div>
+
+    <div id="error-msg" style="display: none; text-align: center; padding: 1rem; background: #fdecea; border-radius: 6px; margin-top: 0.5rem; color: #721c24;">
+        Cannot convert between volume and weight units.
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 0.8rem;">Quick Reference</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+        <div>
+            <h3 style="font-size: 0.95rem; color: #6b8f4e; margin-bottom: 0.5rem;">Volume</h3>
+            <table style="width: 100%; font-size: 0.9rem; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">3 teaspoons</td><td style="padding: 0.3rem 0; text-align: right;">= 1 tablespoon</td></tr>
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">2 tablespoons</td><td style="padding: 0.3rem 0; text-align: right;">= 1 fluid ounce</td></tr>
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">8 fluid ounces</td><td style="padding: 0.3rem 0; text-align: right;">= 1 cup</td></tr>
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">2 cups</td><td style="padding: 0.3rem 0; text-align: right;">= 1 pint</td></tr>
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">2 pints</td><td style="padding: 0.3rem 0; text-align: right;">= 1 quart</td></tr>
+                <tr><td style="padding: 0.3rem 0;">4 quarts</td><td style="padding: 0.3rem 0; text-align: right;">= 1 gallon</td></tr>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 0.95rem; color: #6b8f4e; margin-bottom: 0.5rem;">Weight</h3>
+            <table style="width: 100%; font-size: 0.9rem; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">1 ounce</td><td style="padding: 0.3rem 0; text-align: right;">= 28.35 grams</td></tr>
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">16 ounces</td><td style="padding: 0.3rem 0; text-align: right;">= 1 pound</td></tr>
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">1 pound</td><td style="padding: 0.3rem 0; text-align: right;">= 453.6 grams</td></tr>
+                <tr><td style="padding: 0.3rem 0;">1 kilogram</td><td style="padding: 0.3rem 0; text-align: right;">= 2.205 pounds</td></tr>
+            </table>
+        </div>
+        <div>
+            <h3 style="font-size: 0.95rem; color: #6b8f4e; margin-bottom: 0.5rem;">Metric</h3>
+            <table style="width: 100%; font-size: 0.9rem; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">1 teaspoon</td><td style="padding: 0.3rem 0; text-align: right;">= 4.93 mL</td></tr>
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">1 tablespoon</td><td style="padding: 0.3rem 0; text-align: right;">= 14.79 mL</td></tr>
+                <tr style="border-bottom: 1px solid #eee;"><td style="padding: 0.3rem 0;">1 cup</td><td style="padding: 0.3rem 0; text-align: right;">= 236.6 mL</td></tr>
+                <tr><td style="padding: 0.3rem 0;">1 liter</td><td style="padding: 0.3rem 0; text-align: right;">= 1,000 mL</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Conversion factors to base units: mL for volume, grams for weight
+    const units = {
+        // Volume (base: mL)
+        tsp:    { factor: 4.92892,    category: "volume", label: "Teaspoons" },
+        tbsp:   { factor: 14.7868,    category: "volume", label: "Tablespoons" },
+        fl_oz:  { factor: 29.5735,    category: "volume", label: "Fluid Ounces" },
+        cup:    { factor: 236.588,    category: "volume", label: "Cups" },
+        pint:   { factor: 473.176,    category: "volume", label: "Pints" },
+        quart:  { factor: 946.353,    category: "volume", label: "Quarts" },
+        gallon: { factor: 3785.41,    category: "volume", label: "Gallons" },
+        ml:     { factor: 1,          category: "volume", label: "Milliliters" },
+        liter:  { factor: 1000,       category: "volume", label: "Liters" },
+        // Weight (base: grams)
+        oz:     { factor: 28.3495,    category: "weight", label: "Ounces" },
+        lb:     { factor: 453.592,    category: "weight", label: "Pounds" },
+        g:      { factor: 1,          category: "weight", label: "Grams" },
+        kg:     { factor: 1000,       category: "weight", label: "Kilograms" },
+    };
+
+    const amountEl = document.getElementById("amount");
+    const fromEl = document.getElementById("from-unit");
+    const toEl = document.getElementById("to-unit");
+    const resultValue = document.getElementById("result-value");
+    const resultUnit = document.getElementById("result-unit");
+    const resultDiv = document.getElementById("result");
+    const errorDiv = document.getElementById("error-msg");
+    const swapBtn = document.getElementById("swap-btn");
+
+    function convert() {
+        const amount = parseFloat(amountEl.value);
+        const from = units[fromEl.value];
+        const to = units[toEl.value];
+
+        if (isNaN(amount) || !from || !to) {
+            resultValue.textContent = "—";
+            resultUnit.textContent = "";
+            resultDiv.style.display = "block";
+            errorDiv.style.display = "none";
+            return;
+        }
+
+        if (from.category !== to.category) {
+            resultDiv.style.display = "none";
+            errorDiv.style.display = "block";
+            return;
+        }
+
+        resultDiv.style.display = "block";
+        errorDiv.style.display = "none";
+
+        const baseValue = amount * from.factor;
+        const result = baseValue / to.factor;
+
+        // Format nicely: up to 4 decimal places, strip trailing zeros
+        let formatted;
+        if (result === 0) {
+            formatted = "0";
+        } else if (Math.abs(result) >= 1000) {
+            formatted = result.toLocaleString("en-US", { maximumFractionDigits: 2 });
+        } else if (Math.abs(result) >= 1) {
+            formatted = parseFloat(result.toFixed(4)).toString();
+        } else {
+            formatted = parseFloat(result.toPrecision(4)).toString();
+        }
+
+        resultValue.textContent = formatted;
+        resultUnit.textContent = to.label;
+    }
+
+    amountEl.addEventListener("input", convert);
+    fromEl.addEventListener("change", convert);
+    toEl.addEventListener("change", convert);
+
+    swapBtn.addEventListener("click", function() {
+        const temp = fromEl.value;
+        fromEl.value = toEl.value;
+        toEl.value = temp;
+        convert();
+    });
+
+    // Initial conversion
+    convert();
+})();
+</script>
+{% endblock %}

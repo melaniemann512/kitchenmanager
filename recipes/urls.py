@@ -13,6 +13,7 @@ urlpatterns = [
     path("categories/", views.category_list, name="category_list"),
     path("categories/<slug:slug>/", views.category_detail, name="category_detail"),
     path("timer/", views.timer, name="timer"),
+    path("converter/", views.converter, name="converter"),
     path("pantry/", views.pantry_list, name="pantry_list"),
     path("pantry/add/", views.pantry_add, name="pantry_add"),
     path("pantry/<int:pk>/edit/", views.pantry_edit, name="pantry_edit"),
@@ -25,4 +26,5 @@ urlpatterns = [
     path("shopping/<int:pk>/toggle/", views.shopping_toggle, name="shopping_toggle"),
     path("shopping/<int:pk>/delete/", views.shopping_delete, name="shopping_delete"),
     path("shopping/clear/", views.shopping_clear, name="shopping_clear"),
+    path("about/", views.about, name="about"),
 ]
