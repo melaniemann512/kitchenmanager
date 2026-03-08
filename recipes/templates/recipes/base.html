@@ -47,6 +47,32 @@
 
         nav .links a:hover { color: #fff; border-bottom-color: #d4853b; }
 
+        nav .user-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-left: auto;
+        }
+
+        nav .user-section span {
+            color: #c8bfb0;
+            font-size: 0.9rem;
+        }
+
+        nav .user-section button {
+            background: none;
+            border: none;
+            color: #e8e0d4;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-family: inherit;
+            padding-bottom: 0.2rem;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        nav .user-section button:hover { color: #fff; border-bottom-color: #d4853b; }
+
         .container {
             max-width: 900px;
             margin: 2rem auto;
@@ -330,8 +356,23 @@
             <a href="{% url 'converter' %}">Converter</a>
             <a href="{% url 'recipe_create' %}">Add Recipe</a>
             <a href="{% url 'recipe_generate' %}">Find Recipe</a>
+            <a href="{% url 'substitution_list' %}">Substitutions</a>
             <a href="{% url 'about' %}">About</a>
         </div>
+        {% if user.is_authenticated %}
+        <div class="user-section">
+            <span>{{ user.username }}</span>
+            <form method="post" action="{% url 'logout' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit">Sign Out</button>
+            </form>
+        </div>
+        {% else %}
+        <div class="user-section">
+            <a href="{% url 'login' %}">Sign In</a>
+            <a href="{% url 'register' %}">Register</a>
+        </div>
+        {% endif %}
     </nav>
     <div class="container">
         {% block content %}{% endblock %}

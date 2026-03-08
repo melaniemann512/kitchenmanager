@@ -95,6 +95,7 @@
 
 <div class="actions">
     <a href="{% url 'recipe_edit' recipe.slug %}" class="btn btn-primary">Edit</a>
+    <a href="{% url 'recipe_convert' recipe.slug %}" class="btn btn-success">Convert Recipe</a>
     <a href="{% url 'recipe_delete' recipe.slug %}" class="btn btn-danger">Delete</a>
     <a href="{% url 'recipe_list' %}" class="btn btn-secondary">Back to list</a>
 </div>

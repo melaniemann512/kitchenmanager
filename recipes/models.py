@@ -11,12 +11,21 @@ logger = logging.getLogger(__name__)
 
 
 class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(max_length=100, unique=True, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="categories",
+    )
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, blank=True)
 
     class Meta:
         verbose_name_plural = "categories"
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "slug"], name="unique_category_user_slug"),
+            models.UniqueConstraint(fields=["user", "name"], name="unique_category_user_name"),
+        ]
 
     def __str__(self):
         return self.name
@@ -28,8 +37,13 @@ class Category(models.Model):
 
 
 class Recipe(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="recipes",
+    )
     title = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=200, unique=True, blank=True)
+    slug = models.SlugField(max_length=200, blank=True)
     description = models.TextField(blank=True)
     ingredients = models.TextField(help_text="Enter each ingredient on a new line")
     instructions = models.TextField(help_text="Enter each step on a new line")
@@ -57,6 +71,9 @@ class Recipe(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "slug"], name="unique_recipe_user_slug"),
+        ]
 
     def __str__(self):
         return self.title
@@ -146,6 +163,11 @@ class PantryItem(models.Model):
         ("pantry", "Pantry"),
     ]
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="pantry_items",
+    )
     name = models.CharField(max_length=200)
     quantity = models.CharField(max_length=100, blank=True, help_text="e.g., 2 lbs, 1 gallon")
     quantity_amount = models.DecimalField(
@@ -228,6 +250,31 @@ class PantryItem(models.Model):
         return labels[self.status]
 
 
+class IngredientSubstitution(models.Model):
+    DIETARY_CHOICES = [
+        ("gluten_free", "Gluten-Free"), ("keto", "Keto"),
+        ("vegan", "Vegan"), ("vegetarian", "Vegetarian"),
+        ("dairy_free", "Dairy-Free"), ("nut_free", "Nut-Free"),
+        ("low_sodium", "Low-Sodium"), ("paleo", "Paleo"),
+        ("low_carb", "Low-Carb"), ("egg_free", "Egg-Free"),
+    ]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="substitutions", null=True, blank=True)
+    ingredient_name  = models.CharField(max_length=200)
+    substitute_name  = models.CharField(max_length=200)
+    dietary_need     = models.CharField(max_length=20, choices=DIETARY_CHOICES)
+    conversion_ratio = models.CharField(max_length=100, blank=True, help_text="e.g., '1:1'")
+    notes            = models.TextField(blank=True)
+    ai_generated     = models.BooleanField(default=False)
+    created_at       = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["dietary_need", "ingredient_name"]
+
+    def __str__(self):
+        return f"{self.ingredient_name} → {self.substitute_name} ({self.dietary_need})"
+
+
 class ShoppingItem(models.Model):
     SECTION_CHOICES = [
         ("produce", "Produce"),
@@ -240,6 +287,11 @@ class ShoppingItem(models.Model):
         ("other", "Other"),
     ]
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="shopping_items",
+    )
     name = models.CharField(max_length=200)
     quantity = models.CharField(max_length=100, blank=True, help_text="e.g., 2 lbs, 1 dozen")
     section = models.CharField(max_length=10, choices=SECTION_CHOICES, default="other")

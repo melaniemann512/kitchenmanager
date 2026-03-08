@@ -1,9 +1,26 @@
 from django import forms
 
-from .models import PantryItem, Recipe, ShoppingItem
+from .models import Category, IngredientSubstitution, PantryItem, Recipe, ShoppingItem
+
+
+class IngredientSubstitutionForm(forms.ModelForm):
+    class Meta:
+        model  = IngredientSubstitution
+        fields = ["ingredient_name", "substitute_name", "dietary_need", "conversion_ratio", "notes"]
+        widgets = {
+            "ingredient_name":  forms.TextInput(attrs={"placeholder": "e.g., all-purpose flour"}),
+            "substitute_name":  forms.TextInput(attrs={"placeholder": "e.g., almond flour"}),
+            "conversion_ratio": forms.TextInput(attrs={"placeholder": "e.g., 1:1 or 3/4 cup per cup"}),
+            "notes":            forms.Textarea(attrs={"rows": 2}),
+        }
 
 
 class RecipeForm(forms.ModelForm):
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields["category"].queryset = Category.objects.filter(user=user)
+
     class Meta:
         model = Recipe
         fields = [

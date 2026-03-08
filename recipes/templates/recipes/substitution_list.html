@@ -1,0 +1,183 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}Substitutions{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Ingredient Substitutions</h1>
+</div>
+<p class="page-subtitle">Look up dietary substitutions or save your own personal overrides.</p>
+
+{% if error %}
+<div class="alert-banner alert-banner-danger">{{ error }}</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <h2 style="margin-bottom:0.8rem;">AI Substitution Lookup</h2>
+    <form id="lookup-form" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end;">
+        {% csrf_token %}
+        <div style="flex:1;min-width:160px;">
+            <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Ingredient</label>
+            <input type="text" id="lookup-ingredient" name="ingredient" placeholder="e.g., butter"
+                   style="width:100%;padding:0.5rem 0.8rem;border:1px solid #ccc;border-radius:4px;font-size:0.95rem;font-family:inherit;">
+        </div>
+        <div style="flex:1;min-width:160px;">
+            <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:0.3rem;">Dietary Need</label>
+            <select id="lookup-dietary" name="dietary_need"
+                    style="width:100%;padding:0.5rem 0.8rem;border:1px solid #ccc;border-radius:4px;font-size:0.95rem;font-family:inherit;">
+                <option value="">— select —</option>
+                {% for value, label in dietary_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Look Up</button>
+    </form>
+    <div id="lookup-result" style="margin-top:0.8rem;display:none;">
+        <div class="card" style="background:#f5f9f0;border-top-color:#6b8f4e;margin-bottom:0;">
+            <p><strong id="result-substitute"></strong> <span id="result-ratio" style="color:#8a7e72;font-size:0.9rem;"></span></p>
+            <p id="result-notes" style="color:#5c4a32;font-size:0.9rem;margin-top:0.3rem;"></p>
+            <p id="result-source" style="font-size:0.8rem;color:#8a7e72;margin-top:0.4rem;"></p>
+        </div>
+    </div>
+    <div id="lookup-error" style="margin-top:0.8rem;display:none;" class="alert-banner alert-banner-danger"></div>
+</div>
+
+<style>
+    .dietary-badge {
+        display: inline-block;
+        background: #e8f0e0;
+        color: #3d4f2f;
+        padding: 0.15rem 0.6rem;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        font-weight: 500;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+    th { text-align: left; padding: 0.5rem 0.6rem; background: #f0e6d3; color: #5c4a32; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #ede6da; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+</style>
+
+<form method="get" style="margin-bottom:1.5rem;display:flex;gap:0.5rem;align-items:center;">
+    <label style="font-weight:600;font-size:0.9rem;">Filter by dietary need:</label>
+    <select name="dietary_need" onchange="this.form.submit()"
+            style="padding:0.4rem 0.7rem;border:1px solid #ccc;border-radius:4px;font-size:0.9rem;font-family:inherit;">
+        <option value="">All</option>
+        {% for value, label in dietary_choices %}
+        <option value="{{ value }}" {% if dietary_need == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    {% if dietary_need %}<a href="{% url 'substitution_list' %}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+    <h2 style="margin-bottom:0.8rem;">Global Library <span class="meta">(AI-generated, shared)</span></h2>
+    {% if global_subs %}
+    <table>
+        <thead><tr><th>Ingredient</th><th>Substitute</th><th>Diet</th><th>Ratio</th><th>Notes</th></tr></thead>
+        <tbody>
+        {% for sub in global_subs %}
+        <tr>
+            <td>{{ sub.ingredient_name }}</td>
+            <td><strong>{{ sub.substitute_name }}</strong></td>
+            <td><span class="dietary-badge">{{ sub.get_dietary_need_display }}</span></td>
+            <td style="color:#8a7e72;">{{ sub.conversion_ratio }}</td>
+            <td style="color:#8a7e72;">{{ sub.notes }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="meta">No global substitutions yet. Use the AI lookup above to populate the library.</p>
+    {% endif %}
+</div>
+
+<div class="card" style="margin-top:1.5rem;">
+    <h2 style="margin-bottom:0.8rem;">My Substitutions</h2>
+    {% if user_subs %}
+    <table style="margin-bottom:1.2rem;">
+        <thead><tr><th>Ingredient</th><th>Substitute</th><th>Diet</th><th>Ratio</th><th>Notes</th><th></th></tr></thead>
+        <tbody>
+        {% for sub in user_subs %}
+        <tr>
+            <td>{{ sub.ingredient_name }}</td>
+            <td><strong>{{ sub.substitute_name }}</strong></td>
+            <td><span class="dietary-badge">{{ sub.get_dietary_need_display }}</span></td>
+            <td style="color:#8a7e72;">{{ sub.conversion_ratio }}</td>
+            <td style="color:#8a7e72;">{{ sub.notes }}</td>
+            <td>
+                <form method="post" action="{% url 'substitution_delete' sub.pk %}"
+                      onsubmit="return confirm('Delete this substitution?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="meta" style="margin-bottom:1rem;">No personal substitutions yet.</p>
+    {% endif %}
+
+    <h3 style="margin-bottom:0.6rem;">Add Personal Substitution</h3>
+    <form method="post">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">
+            {% for field in form %}
+            <div class="field" {% if field.name == "notes" %}style="grid-column:1/-1;"{% endif %}>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:0.5rem;">Save</button>
+    </form>
+</div>
+
+<script>
+document.getElementById("lookup-form").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const ingredient = document.getElementById("lookup-ingredient").value.trim();
+    const dietary_need = document.getElementById("lookup-dietary").value;
+    const resultDiv = document.getElementById("lookup-result");
+    const errorDiv = document.getElementById("lookup-error");
+
+    resultDiv.style.display = "none";
+    errorDiv.style.display = "none";
+
+    if (!ingredient || !dietary_need) {
+        errorDiv.textContent = "Please enter an ingredient and select a dietary need.";
+        errorDiv.style.display = "block";
+        return;
+    }
+
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    fetch("{% url 'substitution_lookup' %}", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded", "X-CSRFToken": csrfToken},
+        body: `ingredient=${encodeURIComponent(ingredient)}&dietary_need=${encodeURIComponent(dietary_need)}&csrfmiddlewaretoken=${encodeURIComponent(csrfToken)}`,
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            errorDiv.textContent = data.error;
+            errorDiv.style.display = "block";
+        } else {
+            document.getElementById("result-substitute").textContent = data.substitute_name;
+            document.getElementById("result-ratio").textContent = data.conversion_ratio ? `(${data.conversion_ratio})` : "";
+            document.getElementById("result-notes").textContent = data.notes || "";
+            const sourceLabels = {"user": "Your personal override", "global_cache": "From shared library", "ai": "AI-generated & saved to library"};
+            document.getElementById("result-source").textContent = sourceLabels[data.source] || data.source;
+            resultDiv.style.display = "block";
+        }
+    })
+    .catch(() => {
+        errorDiv.textContent = "Request failed. Please try again.";
+        errorDiv.style.display = "block";
+    });
+});
+</script>
+{% endblock %}

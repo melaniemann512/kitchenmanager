@@ -1,0 +1,40 @@
+{% extends "recipes/base.html" %}
+
+{% block title %}Convert Recipe — {{ recipe.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Convert Recipe</h1>
+</div>
+<p class="page-subtitle">
+    Converting: <strong>{{ recipe.title }}</strong> &mdash;
+    a new recipe will be saved with substituted ingredients. The original is preserved.
+</p>
+
+{% if error %}
+<div class="alert-banner alert-banner-danger">{{ error }}</div>
+{% endif %}
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="field">
+            <label for="id_dietary_need">Dietary Need</label>
+            <select name="dietary_need" id="id_dietary_need">
+                <option value="">— select —</option>
+                {% for value, label in dietary_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <p class="helptext" style="margin-bottom:1rem;">
+            AI will look up the best substitutes for each ingredient and create a new version of the recipe.
+            This may take a few seconds.
+        </p>
+        <div class="actions">
+            <button type="submit" class="btn btn-success">Convert &amp; Save</button>
+            <a href="{% url 'recipe_detail' recipe.slug %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
